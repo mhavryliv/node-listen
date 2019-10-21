@@ -13,12 +13,11 @@ appServer.listen(8080);
 appServer.use(bodyParser.json()) 
 
 appServer.post('/is_triggered', function(req, res) {
-  console.log("/is_triggered called");
+  // console.log("/is_triggered called");
   const ret = {
     'is_triggered': isCurrentlyTriggered(),
     'triggered_volume': lastTriggeredVolume
   };
-  console.log(ret);
   res.json(ret);
 })
 
@@ -122,7 +121,7 @@ micInputStream.on('data', function(data) {
       const msecSinceLastTrigger = timeNow - lastTriggerMsec;
       if(msecSinceLastTrigger > mSecToWaitBeforeNextTrigger) {
         lastTriggerMsec = timeNow;
-        console.log("Trigger!");
+        // console.log("Trigger!");
         lastTriggeredVolume = currentMovingAvg;
       }
       // Always reset the count
