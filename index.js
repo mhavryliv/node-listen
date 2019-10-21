@@ -3,7 +3,26 @@ var fs = require('fs');
 const {Transform} = require('stream');
 var Fili = require('fili')
 var iirCalculator = new Fili.CalcCascades();
- 
+
+var express = require('express');
+// Server that is queried by clients
+var appServer = express();
+var bodyParser = require('body-parser');
+
+appServer.listen(8080);
+appServer.use(bodyParser.json()) 
+
+appServer.post('/is_triggered', function(req, res) {
+  console.log("/is_triggered called");
+  const ret = {
+    'is_triggered': isCurrentlyTriggered(),
+    'triggered_volume': lastTriggeredVolume
+  };
+  console.log(ret);
+  res.json(ret);
+})
+
+
 // Build a high pass filter to attenuate electrical ground noise
 var bstopFilterCoefs = iirCalculator.highpass({
     order: 3, // cascade 3 biquad filters (max: 12)
@@ -55,11 +74,15 @@ const threshold = 0.05;
 const movAvgLag = 20;
 const mSecToWaitBeforeNextTrigger = 10 * 1000;
 let lastTriggerMsec = new Date().getTime() - mSecToWaitBeforeNextTrigger;
-console.log(lastTriggerMsec)
+let lastTriggeredVolume = 0;
 let currentMovingAvg = 0;
 let numBlocksAboveThresh = 0;
 let numBlocksBeforeTrigger = 5;
 
+// Returns true if the last trigger occured within the time to wait between triggers
+var isCurrentlyTriggered = function() {
+  return new Date().getTime() - lastTriggerMsec < mSecToWaitBeforeNextTrigger;
+}
  
 micInputStream.on('data', function(data) {
     // console.log("Recieved Input Stream: " + data.length);
@@ -84,7 +107,7 @@ micInputStream.on('data', function(data) {
     // Update the moving average
     currentMovingAvg = movAvg(currentMovingAvg, maxVal, movAvgLag);
 
-    console.log("Current max average: " + currentMovingAvg);
+    // console.log("Current max average: " + currentMovingAvg);
 
     if(currentMovingAvg > threshold) {
       numBlocksAboveThresh++;
@@ -100,6 +123,7 @@ micInputStream.on('data', function(data) {
       if(msecSinceLastTrigger > mSecToWaitBeforeNextTrigger) {
         lastTriggerMsec = timeNow;
         console.log("Trigger!");
+        lastTriggeredVolume = currentMovingAvg;
       }
       // Always reset the count
       numBlocksAboveThresh = 0;
